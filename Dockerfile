@@ -18,13 +18,6 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Australia/Brisbane
 SHELL ["/bin/bash", "-c"]
 
-# Define mountable directories.
-VOLUME ["/opt/CumulusMX/data","/opt/CumulusMX/backup","/opt/CumulusMX/Reports","/var/log/nginx","/opt/CumulusMX/MXdiags","/opt/CumulusMX/config","/opt/CumulusMX/publicweb"]
-
-# Expose ports.
-EXPOSE 80
-EXPOSE 8998
-
 # Install Nginx.
 RUN \
   apt-get update && \
@@ -49,9 +42,34 @@ RUN echo "deb http://download.mono-project.com/repo/ubuntu bionic/snapshots/5.20
     apt-get update && \
     apt-get install -y mono-devel ca-certificates-mono fsharp mono-vbnc nuget && \
     rm -rf /var/lib/apt/lists/*
-  
+
 # Configure TZData
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Ensure CumulusMX Updates are acutally downloaded, and not cached
+ARG CACHEBUST=1
+
+# Download Latest CumulusMX
+RUN \
+  curl -L $(curl -s https://api.github.com/repos/cumulusmx/CumulusMX/releases/latest | grep browser_ | cut -d\" -f4) --output /tmp/CumulusMX.zip && \
+  mkdir /opt/CumulusMX && \
+  mkdir /opt/CumulusMX/publicweb && \
+  unzip /tmp/CumulusMX.zip -d /opt && \
+  chmod +x /opt/CumulusMX/CumulusMX.exe
+
+# Save Template files prior to mounting web folder
+RUN \
+  mkdir /tmp/web && \
+  cp -R /opt/CumulusMX/web/* /tmp/web/
+
+# Define mountable directories.
+VOLUME ["/opt/CumulusMX/data","/opt/CumulusMX/backup","/opt/CumulusMX/Reports","/var/log/nginx","/opt/CumulusMX/MXdiags","/opt/CumulusMX/publicweb","/opt/CumulusMX/web"]
+
+# Copy the Web Service Files into the Published Web Folder
+RUN cp -r /opt/CumulusMX/webfiles/* /opt/CumulusMX/publicweb/
+
+# Add Start Script# Test File
+COPY ./MXWeather.sh /opt/CumulusMX/
 
 # Add Nginx Config
 COPY ./nginx.conf /etc/nginx/
@@ -59,24 +77,11 @@ COPY ./MXWeather.conf /etc/nginx/sites-available/
 RUN ln -s /etc/nginx/sites-available/MXWeather.conf /etc/nginx/sites-enabled/MXWeather.conf && \
   rm /etc/nginx/sites-enabled/default
 
-# Download Latest CumulusMX
-ARG CACHEBUST=1
-RUN \
-  curl -L $(curl -s https://api.github.com/repos/cumulusmx/CumulusMX/releases/latest | grep browser_ | cut -d\" -f4) --output /tmp/CumulusMX.zip && \
-  unzip /tmp/CumulusMX.zip -d /opt && \
-  chmod +x /opt/CumulusMX/CumulusMX.exe
-
-# Add Start Script# Test File
-COPY ./MXWeather.sh /opt/CumulusMX/
-
 WORKDIR /opt/CumulusMX/
 RUN chmod +x /opt/CumulusMX/MXWeather.sh
 
-# Copy in New Executable (beta) - Uncomment to allow for injecting new manual builds of Executable
-# RUN rm -f /opt/CumulusMX/CumulusMX.exe
-# COPY ./CumulusMX.exe /opt/CumulusMX/
-
 CMD ["./MXWeather.sh"]
 
-# How to bail
-#STOPSIGNAL SIGTERM
+# Expose ports.
+EXPOSE 80
+EXPOSE 8998
