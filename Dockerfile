@@ -17,6 +17,10 @@
 #            to the correct USB device ID. (eg. hidraw0, hidraw1, hidraw2)
 
 # Weather data, logs, templates, and settings are persistent outside of the container
+#
+# Dockerfile has been updated (in light of the release of v4.0.0 to hard-code this version to b3283a).
+# This will be until the issues with the Dockerfile can be resovled and the logic added to support
+# running v4.0.0, with .NET Support, and handling the logic for migrating v3 to v4. 
 
 # Pull base image.
 FROM ubuntu:20.04
@@ -58,9 +62,10 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # Ensure CumulusMX Updates are acutally downloaded, and not cached
 ARG CACHEBUST=1
 
-# Download Latest CumulusMX
+# Download Latest v3 CumulusMX (Hard-coded to b3283a)
 RUN \
-  curl -L $(curl -s https://api.github.com/repos/cumulusmx/CumulusMX/releases/latest | grep browser_ | cut -d\" -f4) --output /tmp/CumulusMX.zip && \
+  #curl -L $(curl -s https://api.github.com/repos/cumulusmx/CumulusMX/releases/latest | grep browser_ | cut -d\" -f4) --output /tmp/CumulusMX.zip && \
+  curl -L https://github.com/cumulusmx/CumulusMX/releases/download/b3283/CumulusMXDist3283a.zip --output /tmp/CumulusMX.zip && \
   mkdir /opt/CumulusMX && \
   mkdir /opt/CumulusMX/publicweb && \
   unzip /tmp/CumulusMX.zip -d /opt && \
